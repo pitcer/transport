@@ -1,0 +1,7 @@
+.vscode/
+transport-binaries/
+legacy/
+.gdb_history
+transport
+*.o
+*.txt
