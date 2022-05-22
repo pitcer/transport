@@ -3,12 +3,47 @@
  */
 
 #include "transport.h"
-#include "ip_utils.h"
+#include "io.h"
+#include "utils.h"
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-void parse_input(InputArguments* arguments) {
-    char server_address_string[20];
-    uint16_t server_port;
-    scanf("%s %" SCNu16 " %s %" SCNu32, server_address_string, &server_port,
-        arguments->output_file_name, &arguments->output_size);
-    create_socket_address(server_address_string, server_port, &arguments->server_address);
+/**
+ * Returns request packet length.
+ */
+size_t create_request_packet(
+    const RequestData* request, uint8_t request_packet[REQUEST_PACKET_MAXIMUM_LENGTH]) {
+
+    debug_assert(request->start <= 10000000);
+    debug_assert(request->length <= 1000);
+
+    // `sprintf` returns number of printed characters excluding null terminator.
+    const int result = sprintf(
+        (char*)request_packet, "GET %" PRIu32 " %" PRIu16 "\n", request->start, request->length);
+    if (result < 0) {
+        eprintln("sprintf error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    return result;
+}
+
+void parse_response_packet(const size_t response_packet_length,
+    const uint8_t response_packet[RESPONSE_PACKET_MAXIMUM_LENGTH], ResponseData* response) {
+
+    int header_length;
+    const int result = sscanf((char*)response_packet, "DATA %" SCNu32 " %" SCNu16 "\n%n",
+        &response->start, &response->length, &header_length);
+    if (result == EOF) {
+        eprintln("sscanf error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    response->data = response_packet + header_length;
+    response->data_size = response_packet_length - header_length;
+
+    debug_assert(response->start <= 10000000);
+    debug_assert(response->length <= 1000);
 }

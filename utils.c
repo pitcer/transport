@@ -12,3 +12,12 @@ void print_as_bytes(unsigned char* buff, ssize_t length) {
     }
     println();
 }
+
+uint32_t div_ceil(const uint32_t divident, const uint32_t divisor) {
+    return 1 + (divident - 1) / divisor;
+}
+
+uint32_t mod(const int32_t divident, const uint32_t divisor) {
+    const int32_t remainder = divident % divisor;
+    return remainder < 0 ? remainder + divisor : (uint32_t)remainder;
+}

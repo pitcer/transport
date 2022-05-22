@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "config.h"
 #include <netinet/ip.h>
 #include <stdbool.h>
 
@@ -16,8 +15,7 @@ bool is_in_network(const uint32_t address, const uint32_t network, const uint8_t
 
 void string_address_to_binary(const char* string_address, void* buffer);
 
-void binary_address_to_string(
-    const void* address, char string_address[STRING_ADDRESS_BUFFER_LENGTH]);
+void binary_address_to_string(const void* address, char string_address[INET_ADDRSTRLEN]);
 
 void create_socket_address_from_binary(
     const uint32_t address, const uint16_t port, struct sockaddr_in* socket_address);
@@ -26,6 +24,12 @@ void create_socket_address(
     const char* address, const uint16_t port, struct sockaddr_in* socket_address);
 
 int create_socket();
+
+int open_file(const char* file_name, const int flags, const mode_t mode);
+
+void close_fd(const int fd);
+
+void write_fd(const int fd, const void* buffer, const size_t buffer_length);
 
 void enable_broadcast(const int socket_fd);
 
@@ -37,7 +41,7 @@ ssize_t try_send_to(const int socket_fd, const void* buffer, const size_t buffer
 void send_to(const int socket_fd, const void* buffer, const size_t buffer_length,
     const struct sockaddr_in* receiver);
 
-ssize_t receive_from(
-    const int socket_fd, void* sent_buffer, const size_t buffer_length, struct sockaddr_in* sender);
+size_t receive_from(const int socket_fd, void* sent_buffer, const size_t buffer_length,
+    struct sockaddr_in* sender);
 
 void print_socket_address(const struct sockaddr_in* socket_address);

@@ -2,14 +2,16 @@
  * Piotr Dobiech 316625
  */
 
-#include "ip_utils.h"
+#include "io.h"
 
 #include "utils.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 uint32_t get_broadcast_address(const uint32_t address, const uint8_t mask_length) {
     const uint32_t ones = ~0u;
@@ -29,7 +31,7 @@ bool is_in_network(const uint32_t address, const uint32_t network, const uint8_t
 }
 
 void string_address_to_binary(const char* string_address, void* buffer) {
-    int result = inet_pton(AF_INET, string_address, buffer);
+    const int result = inet_pton(AF_INET, string_address, buffer);
     if (result == 0) {
         eprintln("inet_pton error: given address does not contain a character string representing "
                  "a valid network address in the AF_INET address family.");
@@ -41,9 +43,8 @@ void string_address_to_binary(const char* string_address, void* buffer) {
     }
 }
 
-void binary_address_to_string(
-    const void* address, char string_address[STRING_ADDRESS_BUFFER_LENGTH]) {
-    const char* result = inet_ntop(AF_INET, address, string_address, STRING_ADDRESS_BUFFER_LENGTH);
+void binary_address_to_string(const void* address, char string_address[INET_ADDRSTRLEN]) {
+    const char* result = inet_ntop(AF_INET, address, string_address, INET_ADDRSTRLEN);
     if (result == NULL) {
         eprintln("inet_pton error: %s", strerror(errno));
         exit(EXIT_FAILURE);
@@ -96,6 +97,31 @@ void bind_socket(const int socket_fd, const struct sockaddr_in* address) {
     }
 }
 
+int open_file(const char* file_name, const int flags, const mode_t mode) {
+    const int fd = open(file_name, flags, mode);
+    if (fd < 0) {
+        eprintln("open error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return fd;
+}
+
+void close_fd(const int fd) {
+    const int result = close(fd);
+    if (result == -1) {
+        eprintln("close error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+}
+
+void write_fd(const int fd, const void* buffer, const size_t buffer_length) {
+    const ssize_t result = write(fd, buffer, buffer_length);
+    if (result != (ssize_t)buffer_length) {
+        eprintln("write error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+}
+
 ssize_t try_send_to(const int socket_fd, const void* buffer, const size_t buffer_length,
     const struct sockaddr_in* receiver) {
 
@@ -113,7 +139,7 @@ void send_to(const int socket_fd, const void* buffer, const size_t buffer_length
     }
 }
 
-ssize_t receive_from(const int socket_fd, void* sent_buffer, const size_t buffer_length,
+size_t receive_from(const int socket_fd, void* sent_buffer, const size_t buffer_length,
     struct sockaddr_in* sender) {
 
     socklen_t sender_length = sizeof(*sender);
@@ -127,7 +153,7 @@ ssize_t receive_from(const int socket_fd, void* sent_buffer, const size_t buffer
 }
 
 void print_socket_address(const struct sockaddr_in* socket_address) {
-    char address[STRING_ADDRESS_BUFFER_LENGTH];
+    char address[INET_ADDRSTRLEN];
     binary_address_to_string(&(socket_address->sin_addr), address);
     uint16_t port = ntohs(socket_address->sin_port);
     println("%s:%" PRIu16, address, port);
