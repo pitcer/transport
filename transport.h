@@ -7,8 +7,7 @@
 #include <arpa/inet.h>
 #include <inttypes.h>
 #include <stdio.h>
-
-#define MICROS_IN_SECOND 1000000
+#include <sys/time.h>
 
 #define TICK_SECONDS 1
 #define TICK_MICROSECONDS 0
@@ -16,9 +15,12 @@
 #define PACKET_TIMEOUT_SECONDS 2
 #define PACKET_TIMEOUT_MICROSECONDS 0
 
+static const struct timeval PACKET_TIMEOUT_TIME
+    = { .tv_sec = PACKET_TIMEOUT_SECONDS, .tv_usec = PACKET_TIMEOUT_MICROSECONDS };
+
 #define PACKET_DATA_MAXUMUM_LENGTH 1000
 
-#define WINDOW_SIZE 1
+#define WINDOW_SIZE 2
 
 // "GET <start> <length>\n"
 // <start> \in [0, 10_000_000]

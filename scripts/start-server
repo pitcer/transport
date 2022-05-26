@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./transport-binaries/transport-server 54321

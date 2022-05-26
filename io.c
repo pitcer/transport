@@ -70,6 +70,10 @@ void create_socket_address(
     create_socket_address_from_binary(binary_host_address, port, socket_address);
 }
 
+bool is_socket_address_equal(const struct sockaddr_in* first, const struct sockaddr_in* second) {
+    return first->sin_addr.s_addr == second->sin_addr.s_addr && first->sin_port == second->sin_port;
+}
+
 int create_socket() {
     const int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0) {
@@ -143,6 +147,7 @@ size_t receive_from(const int socket_fd, void* sent_buffer, const size_t buffer_
     struct sockaddr_in* sender) {
 
     socklen_t sender_length = sizeof(*sender);
+    // TODO: add msg_dontwait to flags
     const ssize_t result = recvfrom(
         socket_fd, sent_buffer, buffer_length, 0, (struct sockaddr*)sender, &sender_length);
     if (result < 0) {

@@ -30,3 +30,5 @@ void print_as_bytes(unsigned char* buff, ssize_t length);
 uint32_t div_ceil(const uint32_t divident, const uint32_t divisor);
 
 uint32_t mod(const int32_t divident, const uint32_t divisor);
+
+uint32_t min(const uint32_t first, const uint32_t second);

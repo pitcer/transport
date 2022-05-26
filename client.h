@@ -19,6 +19,7 @@ typedef struct {
     uint32_t output_size;
     struct sockaddr_in server_address;
     Window window;
+    uint32_t written_packets;
 } Client;
 
 void initialize_client(const InputArguments* arguments, Client* client);

@@ -23,6 +23,8 @@ void create_socket_address_from_binary(
 void create_socket_address(
     const char* address, const uint16_t port, struct sockaddr_in* socket_address);
 
+bool is_socket_address_equal(const struct sockaddr_in* first, const struct sockaddr_in* second);
+
 int create_socket();
 
 int open_file(const char* file_name, const int flags, const mode_t mode);
@@ -41,7 +43,7 @@ ssize_t try_send_to(const int socket_fd, const void* buffer, const size_t buffer
 void send_to(const int socket_fd, const void* buffer, const size_t buffer_length,
     const struct sockaddr_in* receiver);
 
-size_t receive_from(const int socket_fd, void* sent_buffer, const size_t buffer_length,
-    struct sockaddr_in* sender);
+size_t receive_from(
+    const int socket_fd, void* sent_buffer, const size_t buffer_length, struct sockaddr_in* sender);
 
 void print_socket_address(const struct sockaddr_in* socket_address);
