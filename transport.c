@@ -34,13 +34,19 @@ size_t create_request_packet(
 void parse_response_packet(const size_t response_packet_length,
     const uint8_t response_packet[RESPONSE_PACKET_MAXIMUM_LENGTH], ResponseData* response) {
 
+    // %n has problems with handling '\r' character when there is '\n' in format.
     int header_length;
-    const int result = sscanf((char*)response_packet, "DATA %" SCNu32 " %" SCNu16 "\n%n",
+    const int result = sscanf((char*)response_packet, "DATA %" SCNu32 " %" SCNu16 "%n",
         &response->start, &response->length, &header_length);
     if (result == EOF) {
         eprintln("sscanf error: %s", strerror(errno));
         exit(EXIT_FAILURE);
     }
+    if (response_packet[header_length] != '\n') {
+        eprintln("Invalid DATA packet format.");
+        exit(EXIT_FAILURE);
+    }
+    header_length++;
 
     response->data = response_packet + header_length;
     response->data_size = response_packet_length - header_length;

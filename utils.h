@@ -12,7 +12,7 @@
 
 #define eprintln(format, ...) fprintf(stderr, format "\n" __VA_OPT__(, ) __VA_ARGS__)
 
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 #define debug(...) println(__VA_ARGS__)
 #else
@@ -25,7 +25,7 @@
 #define debug_assert(expression)
 #endif
 
-void print_as_bytes(unsigned char* buff, ssize_t length);
+void print_as_bytes(const unsigned char* buff, ssize_t length);
 
 uint32_t div_ceil(const uint32_t divident, const uint32_t divisor);
 

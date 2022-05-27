@@ -12,6 +12,10 @@
 #include <math.h>
 #include <string.h>
 
+static inline uint32_t get_packets_to_send(const Client* client) {
+    return div_ceil(client->output_size, PACKET_DATA_MAXUMUM_LENGTH);
+}
+
 void initialize_client(const InputArguments* arguments, Client* client) {
     client->socket_fd = create_socket();
     const int flags = O_WRONLY | O_CREAT | O_APPEND | O_TRUNC;
@@ -20,11 +24,10 @@ void initialize_client(const InputArguments* arguments, Client* client) {
     client->server_address = arguments->server_address;
     client->output_size = arguments->output_size;
     client->written_packets = 0;
-    initialize_window(WINDOW_SIZE, &client->window);
-}
 
-static inline uint32_t get_packets_to_send(const Client* client) {
-    return div_ceil(client->output_size, PACKET_DATA_MAXUMUM_LENGTH);
+    const uint32_t packets_to_send = get_packets_to_send(client);
+    const size_t window_size = min(packets_to_send, WINDOW_SIZE);
+    initialize_window(window_size, &client->window);
 }
 
 static inline uint32_t get_last_packet_length(const Client* client) {
@@ -51,9 +54,12 @@ static inline void send_first_request(
     send_request(client, &request);
 }
 
-static inline void send_initial_requests(Client* client) {
+static inline void send_initial_requests(Client* client, struct timeval* select_time) {
     const uint32_t packets_to_send = div_ceil(client->output_size, PACKET_DATA_MAXUMUM_LENGTH);
     const uint32_t size = min(packets_to_send, client->window.size);
+
+    select_time->tv_sec = PACKET_TIMEOUT_SECONDS + TICK_EPSILON_SECONDS;
+    select_time->tv_usec = PACKET_TIMEOUT_MICROSECONDS + TICK_EPSILON_MICROSECONDS;
 
     for (size_t index = 0; index < size; index++) {
         const uint32_t start = PACKET_DATA_MAXUMUM_LENGTH * index;
@@ -67,38 +73,35 @@ static inline void resend_timeouted_requests(Client* client, struct timeval* sel
     WindowIterator iterator;
     create_window_iterator(&client->window, &iterator);
 
-    // TODO: find the smallest creation time and set select time to it
+    struct timeval lowest_timeout_time;
+    timerclear(&lowest_timeout_time);
 
-    // debug("%lu %lu", client->window.entries_size, client->window.tail_position);
     WindowEntry* entry;
     while ((entry = iterate_window(&iterator)) != NULL) {
-        debug("%u %lu", entry->start, entry->timeout_time.tv_sec);
-
-        // const size_t elapsed_time = (size_t)MICROS_IN_SECOND * entry->elapsed_ticks *
-        // TICK_SECONDS
-        //     + (size_t)entry->elapsed_ticks * TICK_MICROSECONDS;
-        // const size_t timeout_time
-        //     = (size_t)MICROS_IN_SECOND * PACKET_TIMEOUT_SECONDS + PACKET_TIMEOUT_MICROSECONDS;
+        if (!timerisset(&entry->timeout_time)) {
+            continue;
+        }
 
         struct timeval now;
         get_time(&now);
-        // subtract_time(&timeout_time, &PACKET_TIMEOUT_TIME);
-
-        // debug("%u %u", entry->creation_time.tv_sec <= timeout_time.tv_sec,
-        //     entry->creation_time.tv_usec <= timeout_time.tv_usec);
 
         if (timercmp(&entry->timeout_time, &now, <=)) {
-            debug("request sent %lu  %lu", entry->timeout_time.tv_sec, now.tv_sec);
-
             const RequestData request
                 = { .start = entry->start, .length = PACKET_DATA_MAXUMUM_LENGTH };
             send_request(client, &request);
             set_timeout_time(entry, &now);
         }
+
+        if (!timerisset(&lowest_timeout_time)
+            || timercmp(&entry->timeout_time, &lowest_timeout_time, <)) {
+            lowest_timeout_time = entry->timeout_time;
+        }
     }
 
-    select_time->tv_sec = TICK_SECONDS;
-    select_time->tv_usec = TICK_MICROSECONDS;
+    struct timeval now;
+    get_time(&now);
+    subtract_to_zero_time(&lowest_timeout_time, &now, select_time);
+    timeradd(select_time, &TICK_EPSILON_TIME, select_time);
 }
 
 static inline void receive_response(
@@ -132,8 +135,8 @@ static inline void append_and_pull_prefix_of_received_entries(Client* client) {
             : PACKET_DATA_MAXUMUM_LENGTH;
 
         write_fd(client->output_fd, entry->data_buffer, buffer_size);
-        debug("written %lu", buffer_size);
         pull_window_entry(&client->window);
+        pull_window_iterator(&iterator);
 
         if (client->written_packets + client->window.size < packets_to_send) {
             const uint32_t start
@@ -144,6 +147,10 @@ static inline void append_and_pull_prefix_of_received_entries(Client* client) {
         }
 
         client->written_packets++;
+
+        const uint32_t percent = (client->written_packets * 100) / packets_to_send;
+        printf("\r%6uKB/%uKB - %u%%", client->written_packets, packets_to_send, percent);
+        fflush(stdout);
     }
 }
 
@@ -173,32 +180,18 @@ static inline void handle_received_response(Client* client, struct timeval* sele
 
     append_and_pull_prefix_of_received_entries(client);
 
-    println("Start: %" PRIu32, response.start);
-    println("Length: %" PRIu16, response.length);
-    println("Data size: %" PRIu64, response.data_size);
-    // TODO: if it is a last window, then write only last_packet_length
-
     struct timeval delta_time;
     get_time(&delta_time);
 
-    subtract_to_zero_time(&delta_time, &start_time, &delta_time);
-    // TODO subtract timestamp delta from select_time
+    timersub(&delta_time, &start_time, &delta_time);
     subtract_to_zero_time(select_time, &delta_time, select_time);
-
-    // TODO: inny pomysł, przy odebraniu przejdź się po wszystkich wpisach
-    // i te co się ztimeoutowały wyślij ponownie. Jak żaden nie przyjdzie, to wtedy
-    // timeout i
 }
 
-// TODO: zapisuj minimalny (albo drugi minimalny) timestamp (aktualizuj go przy iteracji w send) i
-// ustawiaj go jako timeout selecta (heureza -- dodaj do niego kilka ms), zostaw trochę czasu
-// na wykonanie się receiva
 void run_client(Client* client) {
     const uint32_t packets_to_send = get_packets_to_send(client);
 
-    send_initial_requests(client);
-
-    struct timeval select_time = { .tv_sec = TICK_SECONDS, .tv_usec = TICK_MICROSECONDS };
+    struct timeval select_time;
+    send_initial_requests(client, &select_time);
 
     while (1) {
         fd_set select_descriptors;
@@ -212,13 +205,12 @@ void run_client(Client* client) {
             eprintln("select error: %s", strerror(errno));
             exit(EXIT_FAILURE);
         } else if (ready == 0) {
-            debug("select timeout");
             resend_timeouted_requests(client, &select_time);
         } else { // ready > 0
-            debug("received packet");
             handle_received_response(client, &select_time);
 
             if (client->written_packets == packets_to_send) {
+                println();
                 return;
             }
         }

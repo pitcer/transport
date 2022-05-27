@@ -40,19 +40,13 @@ void push_window_entry(Window* window, const uint32_t start, const struct timeva
 
 void pull_window_entry(Window* window);
 
-// void peek_window_entry(const Window* window, WindowEntry* result_entry);
-
 WindowEntry* peek_window_entry(Window* window);
 
 void create_window_iterator(Window* window, WindowIterator* iterator);
 
-// bool iterate_window(WindowIterator* iterator, WindowEntry* result_entry);
+void pull_window_iterator(WindowIterator* iterator);
 
 WindowEntry* iterate_window(WindowIterator* iterator);
-
-// bool cyclic_iterate_window(WindowIterator* iterator, WindowEntry* result_entry);
-
-WindowEntry* cyclic_iterate_window(WindowIterator* iterator);
 
 WindowEntry* get_window_entry(Window* window, const uint32_t start);
 

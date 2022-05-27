@@ -6,6 +6,7 @@
 
 #include "utils.h"
 #include <malloc.h>
+#include <string.h>
 
 void initialize_window(const size_t window_size, Window* window) {
     window->size = window_size;
@@ -27,8 +28,6 @@ void push_window_entry(Window* window, const uint32_t start, const struct timeva
 
     entry->start = start;
     set_timeout_time(entry, now);
-    // entry->timeout_time = *now;
-    // entry->length = length;
 }
 
 void pull_window_entry(Window* window) {
@@ -38,11 +37,6 @@ void pull_window_entry(Window* window) {
     window->tail_position = (tail_position + 1) % window->size;
     window->entries_size--;
 }
-
-// void peek_window_entry(const Window* window, WindowEntry* result_entry) {
-//     const WindowEntry* entry = &window->entries[window->tail_position];
-//     copy_window_entry(entry, result_entry);
-// }
 
 WindowEntry* peek_window_entry(Window* window) {
     return &window->entries[window->tail_position];
@@ -65,18 +59,14 @@ void create_window_iterator(Window* window, WindowIterator* iterator) {
     reset_iterator(iterator);
 }
 
+void pull_window_iterator(WindowIterator* iterator) {
+    iterator->index = (iterator->index + 1) % iterator->window->size;
+    iterator->counter--;
+}
+
 bool window_iterator_has_next(WindowIterator* iterator) {
     return iterator->counter < iterator->window->entries_size;
 }
-
-// bool iterate_window(WindowIterator* iterator, WindowEntry* result_entry) {
-//     const WindowEntry* entry = iterate_mut_window(iterator);
-//     if (entry == NULL) {
-//         return false;
-//     }
-//     copy_window_entry(entry, result_entry);
-//     return true;
-// }
 
 WindowEntry* iterate_window(WindowIterator* iterator) {
     if (!window_iterator_has_next(iterator)) {
@@ -84,44 +74,6 @@ WindowEntry* iterate_window(WindowIterator* iterator) {
     }
     return iterate_next(iterator);
 }
-
-// bool cyclic_iterate_window(WindowIterator* iterator, WindowEntry* result_entry) {
-//     const WindowEntry* entry = cyclic_iterate_mut_window(iterator);
-//     copy_window_entry(entry, result_entry);
-//     return true;
-// }
-
-WindowEntry* cyclic_iterate_window(WindowIterator* iterator) {
-    if (!window_iterator_has_next(iterator)) {
-        reset_iterator(iterator);
-    }
-    return iterate_next(iterator);
-}
-
-// WindowEntry* find_mut_window_entry(
-//     WindowIterator* iterator, const uint32_t start, const uint16_t length) {
-
-//     if (is_window_empty(iterator->window)) {
-//         return NULL;
-//     }
-
-//     WindowEntry* first_entry = cyclic_iterate_window(iterator);
-//     if (first_entry == NULL) {
-//         return NULL;
-//     }
-//     if (first_entry->start == start && first_entry->length == length) {
-//         return first_entry;
-//     }
-
-//     WindowEntry* entry;
-//     while ((entry = cyclic_iterate_window(iterator)) != NULL && entry != first_entry) {
-//         if (first_entry->start == start && first_entry->length == length) {
-//             return first_entry;
-//         }
-//     }
-
-//     return NULL;
-// }
 
 WindowEntry* get_window_entry(Window* window, const uint32_t start) {
     debug_assert(start % PACKET_DATA_MAXUMUM_LENGTH == 0);
