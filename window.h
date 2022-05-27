@@ -8,7 +8,9 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
-
+// |buffer|buffer|
+//      v   v
+//     |buffer fizyczny|
 typedef struct {
     struct timeval timeout_time;
     uint32_t start;
